@@ -60,6 +60,8 @@ const CameraLogger = () => {
 
 
 const App = () => {
+  const [showModal, setShowModal] = useState(true); // State to show/hide the modal
+  const [firstInteraction, setFirstInteraction] = useState(true); // State to manage the first interaction
   const [cartridges, setCartridges] = useState([]);
   const [activeCartridge, setActiveCartridge] = useState(null);
   const musicPlayerRef = useRef();
@@ -81,6 +83,20 @@ const App = () => {
     // Cleanup listener
     return () => window.removeEventListener('resize', updatePlayerMode);
   }, []);
+
+  const handleOkayClick = () => {
+    // Close the modal
+    setShowModal(false);
+
+    // If it's the first interaction, just play and pause the audio to unlock it
+    if (firstInteraction && musicPlayerRef.current) {
+      musicPlayerRef.current.audio.play().then(() => {
+        musicPlayerRef.current.audio.pause();
+        setFirstInteraction(false); // Update the state to know that the first interaction has occurred
+      }).catch(error => console.error('Error playing audio:', error));
+    }
+  };
+
 
 
 
@@ -179,6 +195,31 @@ const App = () => {
 
   return (
     <>
+    {showModal && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1000,
+          fontFamily: 'monospace',
+          textTransform: 'uppercase',
+          backgroundColor: 'white',
+          padding: '20px',
+          borderRadius: '5px',
+          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center'
+        }}>
+          <p>Click a cartridge to start playing, move in the space in 3d. This is a beta version, if a song doesn't start playing, hit the headphones and hit play and pause once, enjoy!</p>
+          <button onClick={handleOkayClick} style={{
+            fontFamily: 'monospace',
+            textTransform: 'uppercase',
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: 'pointer'
+          }}>Okay</button>
+        </div>
+      )}
     <div style={{
           position: 'absolute',
           top: '15px', // Adjust the positioning as needed
