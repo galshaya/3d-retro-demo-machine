@@ -65,6 +65,22 @@ const App = () => {
   const musicPlayerRef = useRef();
   const sfxin = new Audio('/sfxin.mp3')
   const sfxout = new Audio('/sfxout.mp3')
+  const [playerMode, setPlayerMode] = useState('full'); // Default mode
+
+  useEffect(() => {
+    // Function to update the player mode based on screen width
+    const updatePlayerMode = () => {
+      const mode = window.innerWidth > 768 ? 'full' : 'mini'; // Change 768 to your breakpoint for mobile
+      setPlayerMode(mode);
+    };
+
+    // Update player mode on mount and when window resizes
+    updatePlayerMode();
+    window.addEventListener('resize', updatePlayerMode);
+
+    // Cleanup listener
+    return () => window.removeEventListener('resize', updatePlayerMode);
+  }, []);
 
 
 
@@ -251,7 +267,8 @@ const App = () => {
         ref={musicPlayerRef}
         audioLists={audioList}
         autoPlay={false}
-        mode="full"
+        mode={playerMode}
+        defaultPosition={{bottom:15, right:15 }}
         showDownload={false}
         showThemeSwitch={false}
         preload={false}
