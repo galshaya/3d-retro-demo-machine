@@ -3,6 +3,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls,Float, Stars,  } from "@react-three/drei";
 import {  DepthOfField, EffectComposer, Noise, Vignette, Scanline, BrightnessContrast  } from '@react-three/postprocessing'
 import { Leva, useControls } from 'leva';
+import { Perf } from "r3f-perf";
 import { Cartridge } from "./components/Cartridge";
 import MusicPlayer from 'react-jinke-music-player';
 import 'react-jinke-music-player/assets/index.css';
@@ -68,6 +69,29 @@ const App = () => {
   const sfxin = new Audio('/sfxin.mp3')
   const sfxout = new Audio('/sfxout.mp3')
   const [playerMode, setPlayerMode] = useState('full'); // Default mode
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [useEffectComposer, setUseEffectComposer] = useState(true); // New state for toggle
+
+  
+
+  useEffect(() => {
+    const checkIfDesktop = () => {
+      // Logic to determine if the device is desktop
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isMobile = /iphone|ipad|android|windows phone/.test(userAgent);
+      const isDesktop = !isMobile && window.innerWidth > 768; // Adjust as needed
+      setIsDesktop(isDesktop);
+    };
+
+    checkIfDesktop();
+    window.addEventListener('resize', checkIfDesktop);
+
+    return () => {
+      window.removeEventListener('resize', checkIfDesktop);
+    };
+  }, []);
+
+
 
   useEffect(() => {
     // Function to update the player mode based on screen width
@@ -87,37 +111,24 @@ const App = () => {
   const handleOkayClick = () => {
     // Close the modal
     setShowModal(false);
-
+  
     // If it's the first interaction, just play and pause the audio to unlock it
     if (firstInteraction && musicPlayerRef.current) {
       musicPlayerRef.current.audio.play().then(() => {
-        musicPlayerRef.current.audio.pause();
-        setFirstInteraction(false); // Update the state to know that the first interaction has occurred
+        setTimeout(() => {
+          musicPlayerRef.current.audio.pause();
+          setFirstInteraction(false); // Update the state to know that the first interaction has occurred
+        }, 100); // Short delay before pausing, adjust the time as needed
       }).catch(error => console.error('Error playing audio:', error));
     }
   };
 
+  const handleToggleEffectComposer = () => {
+    setUseEffectComposer(!useEffectComposer); // Toggle the state
+  };
 
 
 
-  // const light1Props = useControls('Light 1', {
-  //   intensity: { value: 0.7, min: 0, max: 2, step: 0.1 },
-  //   positionX: { value: 10, min: -50, max: 50, step: 0.1 },
-  //   positionY: { value: 10, min: -50, max: 50, step: 0.1 },
-  //   positionZ: { value: 10, min: -50, max: 50, step: 0.1 },
-  //   angle: { value: Math.PI / 4, min: 0, max: Math.PI / 2, step: 0.1 },
-  //   penumbra: { value: 0.5, min: 0, max: 1, step: 0.1 }
-  // });
-  
-  // // Leva controls for the second spotlight
-  // const light2Props = useControls('Light 2', {
-  //   intensity: { value: 0.7, min: 0, max: 2, step: 0.1 },
-  //   positionX: { value: -10, min: -50, max: 50, step: 0.1 },
-  //   positionY: { value: 10, min: -50, max: 50, step: 0.1 },
-  //   positionZ: { value: 10, min: -50, max: 50, step: 0.1 },
-  //   angle: { value: Math.PI / 4, min: 0, max: Math.PI / 2, step: 0.1 },
-  //   penumbra: { value: 0.5, min: 0, max: 1, step: 0.1 }
-  // });
   
   // Leva controls for the third spotlight
   const light3Props = useControls('Light 3', {
@@ -148,8 +159,10 @@ const App = () => {
           let position = [0, 0, 0]; // Default position
           try {
             position = JSON.parse(item.fields.position);
+            
           } catch (error) {
             console.error("Error parsing position for cartridge:", item.fields.name, error);
+            
           }
     
           return {
@@ -193,6 +206,7 @@ const App = () => {
     musicSrc: cartridge.musicSrc
   }));
 
+
   return (
     <>
     {showModal && (
@@ -235,42 +249,49 @@ const App = () => {
         Delicate Scam Records:<br />
         Demos by <a href="https://instagram.com/galshaya" target="_blank" rel="noopener noreferrer" style={{color: 'inherit'}}>Gal Shaya</a> 2021-Present
       </div>
+      {isDesktop && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          cursor: 'pointer',
+          zIndex: 100
+        }} onClick={handleToggleEffectComposer}>
+          <span style={{
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            marginRight: '10px',
+            color: 'white',
+            userSelect: 'none'
+          }}>
+            {useEffectComposer ? 'Cinematic mode (heavy)' : 'Basic mode (light)'}
+          </span>
+          <div style={{
+            width: '40px',
+            height: '20px',
+            backgroundColor: useEffectComposer ? '#dbd35e' : '#ccc',
+            borderRadius: '20px',
+            padding: '2px',
+            transition: 'background-color 0.2s',
+          }}>
+            <div style={{
+              width: '16px',
+              height: '16px',
+              backgroundColor: 'white',
+              borderRadius: '50%',
+              transition: 'transform 0.2s',
+              transform: useEffectComposer ? 'translateX(20px)' : 'translateX(0px)'
+            }} />
+          </div>
+        </div>
+      )}
       <Canvas shadows camera={{ fov: 70, position: [-16.54, 7.034, 0.064] }}>
         <OrbitControls />
         <CameraLogger />
         <Scene onCartridgeClick={handleCartridgeClick} activeCartridge={activeCartridge} cartridges={cartridges} />
         <ambientLight intensity={0.5} />
-  {/* Spotlight 1 */}
-  {/* <spotLight
-    castShadow
-    position={[light1Props.positionX, light1Props.positionY, light1Props.positionZ]}
-    intensity={light1Props.intensity}
-    angle={light1Props.angle}
-    penumbra={light1Props.penumbra}
-    target={Console.position}
-    decay={2}
-    distance={50}
-    shadow-mapSize-width={2048}
-    shadow-mapSize-height={2048}
-    shadow-bias={-0.0001}
-    // ... (other properties)
-  /> */}
-
-  {/* Spotlight 2 */}
-  {/* <spotLight
-    castShadow
-    position={[light2Props.positionX, light2Props.positionY, light2Props.positionZ]}
-    intensity={light2Props.intensity}
-    angle={light2Props.angle}
-    penumbra={light2Props.penumbra}
-    target={Console.position}
-    decay={2}
-    distance={50}
-    shadow-mapSize-width={2048}
-    shadow-mapSize-height={2048}
-    shadow-bias={-0.0001}
-    // ... (other properties)
-  /> */}
 
   {/* Spotlight 3 */}
   <spotLight
@@ -290,21 +311,20 @@ const App = () => {
 
         {/* <Environment preset="warehouse" /> */}
 
-        <EffectComposer>
-        <DepthOfField focusDistance={0.5} focalLength={2} bokehScale={0.5} height={480} />
-        {/* <Bloom luminanceThreshold={0.7} luminanceSmoothing={0.9} height={300} /> */}
-        <Noise opacity={0.07}  />
-        <Vignette eskil={false} offset={0.15} darkness={1.0} />
-        <Scanline  density={10} opacity={0.25} />
-        <BrightnessContrast brightness={0.12} contrast={0.3} />
-        
-      </EffectComposer>
-      
+        {isDesktop && useEffectComposer && (
+          <EffectComposer>
+            <DepthOfField focusDistance={0.5} focalLength={2} bokehScale={0.5} height={480} />
+            <Noise opacity={0.07} />
+            <Vignette eskil={false} offset={0.15} darkness={1.0} />
+            <Scanline density={10} opacity={0.25} />
+            <BrightnessContrast brightness={0.12} contrast={0.3} />
+          </EffectComposer>
+        )}
+      {/* <Perf position="top-left"/> */}
       </Canvas>
       <Leva hidden />
       
       <MusicPlayer
-
         ref={musicPlayerRef}
         audioLists={audioList}
         autoPlay={false}
