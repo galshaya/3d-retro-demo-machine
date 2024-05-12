@@ -3,12 +3,14 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls,Float, Stars,  } from "@react-three/drei";
 import {  DepthOfField, EffectComposer, Noise, Vignette, Scanline, BrightnessContrast  } from '@react-three/postprocessing'
 import { Leva, useControls } from 'leva';
+import { RugPortal } from "./components/RugPortal";
 import { Perf } from "r3f-perf";
 import { Cartridge } from "./components/Cartridge";
 import MusicPlayer from 'react-jinke-music-player';
 import 'react-jinke-music-player/assets/index.css';
 import { Console } from "./components/Console";
 import { Room } from "./components/Room";
+
 
 
 
@@ -42,6 +44,7 @@ const Scene = ({ onCartridgeClick, activeCartridge, cartridges }) => {
         );
       })}
       <Room />
+      <RugPortal/>
       <Console />
     </>
   );
@@ -71,6 +74,9 @@ const App = () => {
   const [playerMode, setPlayerMode] = useState('full'); // Default mode
   const [isDesktop, setIsDesktop] = useState(false);
   const [useEffectComposer, setUseEffectComposer] = useState(true); // New state for toggle
+  const [currentCover, setCurrentCover] = useState('');
+  const [currentSongName, setCurrentSongName] = useState('');
+  const [isAnimating, setIsAnimating] = useState(false);
 
   
 
@@ -150,7 +156,8 @@ const App = () => {
         const data = await response.json();
         const rotations = [[0, Math.PI /-10 ,0],[0, Math.PI /10 ,0],[0, Math.PI /-9 ,0],[0, Math.PI /9 ,0]]
 
-        const processedCartridges = data.items.map(item => {
+          const processedCartridges = data.items.map(item => {
+          const coverAsset = data.includes.Asset.find(asset => asset.sys.id === item.fields.cover.sys.id);
           const stickerCoverAsset = data.includes.Asset.find(asset => asset.sys.id === item.fields.stickerCover.sys.id);
           const musicSrcAsset = data.includes.Asset.find(asset => asset.sys.id === item.fields.musicSrc.sys.id);
           const randomRotation = rotations[Math.floor(Math.random() * rotations.length)]; // Assign a random rotation for each cartridge
@@ -171,7 +178,8 @@ const App = () => {
             stickerCover: stickerCoverAsset.fields.file.url,
             musicSrc: musicSrcAsset.fields.file.url,
             position: position,
-            rotation: randomRotation
+            rotation: randomRotation,
+            cover: coverAsset.fields.file.url,
           };
         });
         setCartridges(processedCartridges);
@@ -184,27 +192,57 @@ const App = () => {
   }, []);
 
   const handleCartridgeClick = (name) => {
-    
+    if (isAnimating) return; // Exit if an animation is in progress
+    setIsAnimating(true); // Prevent further clicks
+    // Simulate animation end after 1200ms
+    setTimeout(() => {
+      setIsAnimating(false);
+    }, 100);
+
+    // Find the clicked cartridge
+    const cartridge = cartridges.find(cartridge => cartridge.name === name);
 
     if (activeCartridge === name) {
       setActiveCartridge(null);
       musicPlayerRef.current.audio.pause();
       sfxout.play();
+      setCurrentCover(''); // Reset the current cover when no song is active
+      setCurrentSongName(''); // Reset the current song name
     } else {
       setActiveCartridge(name);
       sfxin.play();
+      setCurrentCover(cartridge.cover); // Update the current cover to the clicked cartridge's cover
+      setCurrentSongName(cartridge.name); // Update the current song name
       const songIndex = cartridges.findIndex(cartridge => cartridge.name === name);
-      setTimeout( () => {
+      setTimeout(() => {
         musicPlayerRef.current.updatePlayIndex(songIndex);
-        musicPlayerRef.current.audio.play();  
-      },1200 )
+        musicPlayerRef.current.audio.play();
+      }, 1200);
     }
   };
 
+  const handleAnimationStart = () => {
+    setIsAnimating(true);
+
+    // Use setTimeout to wait for the animation duration before setting isAnimating back to false
+    setTimeout(() => {
+      handleAnimationEnd(); // Call the function that handles the end of the animation
+    }, 1200); // Match this duration to the length of your animation
+  };
+
+  const handleAnimationEnd = () => {
+    setIsAnimating(false);
+  };
+
+
+
   const audioList = cartridges.map(cartridge => ({
     name: cartridge.name,
-    musicSrc: cartridge.musicSrc
+    musicSrc: cartridge.musicSrc,
+    cover: cartridge.cover,
   }));
+
+  const bottomSpacing = isDesktop ? '8%' : '15px';
 
 
   return (
@@ -290,7 +328,11 @@ const App = () => {
       <Canvas shadows camera={{ fov: 70, position: [-16.54, 7.034, 0.064] }}>
         <OrbitControls />
         <CameraLogger />
-        <Scene onCartridgeClick={handleCartridgeClick} activeCartridge={activeCartridge} cartridges={cartridges} />
+        <Scene 
+          onCartridgeClick={handleCartridgeClick} 
+          activeCartridge={activeCartridge} 
+          cartridges={cartridges}
+        />
         <ambientLight intensity={0.5} />
 
   {/* Spotlight 3 */}
@@ -323,6 +365,41 @@ const App = () => {
       {/* <Perf position="top-left"/> */}
       </Canvas>
       <Leva hidden />
+     
+      <div style={{
+        position: 'absolute',
+        bottom: bottomSpacing,
+        left: '15px',
+        display: 'flex',
+        alignItems: 'center',
+        zIndex: 100,
+        fontFamily: 'monospace',
+        color: 'white',
+        opacity: '0.7',
+      }}>
+        {currentCover && (
+          <div style={{
+            width: '70px',
+            height: '70px',
+            backgroundImage: `url(${currentCover})`,
+            backgroundSize: 'cover',
+            marginRight: '10px',
+          }} />
+        )}
+        {currentSongName && (
+          <div style={{
+            fontSize: '14px',
+          }}>
+            {currentSongName}
+          </div>
+        )}
+      </div>
+
+
+      {/* {currentSongName && (
+        <p>currentSongName</p>
+      )} */}
+
       
       <MusicPlayer
         ref={musicPlayerRef}

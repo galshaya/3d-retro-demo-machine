@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useGLTF, useTexture } from '@react-three/drei';
 import { useSpring, a } from '@react-spring/three';
 
-export function Cartridge({ name, active, originalPosition, onClick, stickerCover, originalRotation }) {
+export function Cartridge({ name, active, originalPosition, onClick, stickerCover, originalRotation,}) {
     const { nodes, materials } = useGLTF('/CARTRIDGE6.glb');
     const texture = useTexture(stickerCover);
     texture.flipY = false;
@@ -15,9 +15,9 @@ export function Cartridge({ name, active, originalPosition, onClick, stickerCove
 
     const { position, rotation } = useSpring({
         to: active ? [
-            { position: [1, 5, 0], rotation: [0, 2 * Math.PI, Math.PI / -8] },
-            { position: [1, 1, 0], rotation: [0, 2 * Math.PI, 0] }
-        ] : { position: originalPosition, rotation: originalRotation },
+            { position: [1, 5, 0], rotation: [0, 2 * Math.PI, Math.PI / -8], },
+            { position: [1, 1, 0], rotation: [0, 2 * Math.PI, 0], }
+        ] : { position: originalPosition, rotation: originalRotation,},
         from: {
             position: originalPosition,
             rotation: originalRotation,
