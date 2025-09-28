@@ -1,81 +1,27 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useControls, button } from 'leva';
 
 export function AudioVisualizer({ isPlaying }) {
   const meshRef = useRef();
   const timeRef = useRef(0);
 
-  // Debug controls for positioning and parameters
-  const {
-    posX, posY, posZ,
-    rotX, rotY, rotZ,
-    barCount, barSpacing, barWidth, barDepth,
-    baseHeight, waveAmplitude, waveSpeed, waveOffset,
-    opacity, color
-  } = useControls('Audio Visualizer', {
-    'Position': '',
-    posX: { value: 0, min: -50, max: 50, step: 0.1 },
-    posY: { value: 15, min: 0, max: 50, step: 0.1 },
-    posZ: { value: -20, min: -50, max: 50, step: 0.1 },
-    '---': '',
-    'Rotation': '',
-    rotX: { value: 0, min: -Math.PI, max: Math.PI, step: 0.01 },
-    rotY: { value: 0, min: -Math.PI, max: Math.PI, step: 0.01 },
-    rotZ: { value: 0, min: -Math.PI, max: Math.PI, step: 0.01 },
-    '----': '',
-    'Bars': '',
-    barCount: { value: 12, min: 3, max: 24, step: 1 },
-    barSpacing: { value: 2, min: 0.5, max: 5, step: 0.1 },
-    barWidth: { value: 0.2, min: 0.1, max: 1, step: 0.05 },
-    barDepth: { value: 0.2, min: 0.1, max: 1, step: 0.05 },
-    '-----': '',
-    'Animation': '',
-    baseHeight: { value: 0.5, min: 0.1, max: 2, step: 0.1 },
-    waveAmplitude: { value: 0.8, min: 0.1, max: 2, step: 0.1 },
-    waveSpeed: { value: 3, min: 0.5, max: 10, step: 0.1 },
-    waveOffset: { value: 0.5, min: 0.1, max: 2, step: 0.1 },
-    '------': '',
-    'Visual': '',
-    opacity: { value: 0.15, min: 0.01, max: 1, step: 0.01 },
-    color: { value: '#ffffff' },
-    '------': '',
-    'Copy Values': button(() => {
-      const values = {
-        position: [posX, posY, posZ],
-        rotation: [rotX, rotY, rotZ],
-        barCount,
-        barSpacing,
-        barWidth,
-        barDepth,
-        baseHeight,
-        waveAmplitude,
-        waveSpeed,
-        waveOffset,
-        opacity,
-        color
-      };
-
-      const code = `// Audio Visualizer Settings
-position={[${posX}, ${posY}, ${posZ}]}
-rotation={[${rotX}, ${rotY}, ${rotZ}]}
-barCount={${barCount}}
-barSpacing={${barSpacing}}
-barWidth={${barWidth}}
-barDepth={${barDepth}}
-baseHeight={${baseHeight}}
-waveAmplitude={${waveAmplitude}}
-waveSpeed={${waveSpeed}}
-waveOffset={${waveOffset}}
-opacity={${opacity}}
-color="${color}"`;
-
-      navigator.clipboard.writeText(code).then(() => {
-        console.log('Settings copied to clipboard!');
-        alert('Settings copied to clipboard!');
-      });
-    })
-  });
+  // Hardcoded final parameters
+  const posX = 0;
+  const posY = 15;
+  const posZ = -20;
+  const rotX = 0;
+  const rotY = 0;
+  const rotZ = 0;
+  const barCount = 12;
+  const barSpacing = 2;
+  const barWidth = 0.2;
+  const barDepth = 0.2;
+  const baseHeight = 0.5;
+  const waveAmplitude = 0.8;
+  const waveSpeed = 3;
+  const waveOffset = 0.5;
+  const opacity = 0.15;
+  const color = '#ffffff';
 
   // Animation loop - waveform-style visualization
   useFrame((state, delta) => {
