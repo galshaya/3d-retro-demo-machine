@@ -5,22 +5,22 @@ export function AudioVisualizer({ isPlaying }) {
   const meshRef = useRef();
   const timeRef = useRef(0);
 
-  // Hardcoded final parameters
-  const posX = 0;
+  // Audio Visualizer Settings - Final production parameters
+  const posX = 34;
   const posY = 15;
-  const posZ = -20;
+  const posZ = 0;
   const rotX = 0;
-  const rotY = 0;
+  const rotY = 1.5;
   const rotZ = 0;
   const barCount = 12;
-  const barSpacing = 2;
-  const barWidth = 0.2;
-  const barDepth = 0.2;
+  const barSpacing = 1.4;
+  const barWidth = 0.1;
+  const barDepth = 0.1;
   const baseHeight = 0.5;
-  const waveAmplitude = 0.8;
-  const waveSpeed = 3;
-  const waveOffset = 0.5;
-  const opacity = 0.15;
+  const waveAmplitude = 0.4;
+  const waveSpeed = 2.8;
+  const waveOffset = 1.2;
+  const opacity = 1;
   const color = '#ffffff';
 
   // Animation loop - waveform-style visualization
