@@ -32,3 +32,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+

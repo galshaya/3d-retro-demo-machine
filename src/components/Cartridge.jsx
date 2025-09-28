@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useGLTF, useTexture } from '@react-three/drei';
 import { useSpring, a } from '@react-spring/three';
 
@@ -12,16 +12,24 @@ export function Cartridge({ name, active, originalPosition, onClick, stickerCove
     stickerMaterial.needsUpdate = true;
 
     const groupRef = useRef();
+    const [animationPhase, setAnimationPhase] = useState(active ? 2 : 0); // 0: original, 1: up, 2: down
+
+    // Control animation phases
+    useEffect(() => {
+        if (active) {
+            setAnimationPhase(1); // First go up
+            setTimeout(() => setAnimationPhase(2), 600); // Then go down after 600ms
+        } else {
+            setAnimationPhase(0); // Return to original
+        }
+    }, [active]);
 
     const { position, rotation } = useSpring({
-        to: active ? [
-            { position: [1, 5, 0], rotation: [0, 2 * Math.PI, Math.PI / -8], },
-            { position: [1, 1, 0], rotation: [0, 2 * Math.PI, 0], }
-        ] : { position: originalPosition, rotation: originalRotation,},
-        from: {
-            position: originalPosition,
-            rotation: originalRotation,
-        },
+        to: animationPhase === 0
+            ? { position: originalPosition, rotation: originalRotation }
+            : animationPhase === 1
+            ? { position: [1, 5, 0], rotation: [0, 2 * Math.PI, Math.PI / -8] }  // Up above console
+            : { position: [1, 1, 0], rotation: [0, 2 * Math.PI, 0] },          // Down into console
         config: { mass: 3, tension: 350, friction: 50 },
     });
 

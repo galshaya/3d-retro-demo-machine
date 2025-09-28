@@ -77,6 +77,14 @@ const App = () => {
   const [currentCover, setCurrentCover] = useState('');
   const [currentSongName, setCurrentSongName] = useState('');
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [modalJustClosed, setModalJustClosed] = useState(false);
+  const [manualPlayerOperation, setManualPlayerOperation] = useState(false);
+
+  // Debug activeCartridge changes
+  useEffect(() => {
+    console.log('activeCartridge changed to:', activeCartridge);
+  }, [activeCartridge]);
 
   
 
@@ -117,15 +125,20 @@ const App = () => {
   const handleOkayClick = () => {
     // Close the modal
     setShowModal(false);
-  
+    setModalJustClosed(true);
+
     // If it's the first interaction, just play and pause the audio to unlock it
     if (firstInteraction && musicPlayerRef.current) {
       musicPlayerRef.current.audio.play().then(() => {
         setTimeout(() => {
           musicPlayerRef.current.audio.pause();
           setFirstInteraction(false); // Update the state to know that the first interaction has occurred
+          // Clear the flag after the audio unlock trick
+          setTimeout(() => setModalJustClosed(false), 500);
         }, 100); // Short delay before pausing, adjust the time as needed
       }).catch(error => console.error('Error playing audio:', error));
+    } else {
+      setTimeout(() => setModalJustClosed(false), 500);
     }
   };
 
@@ -183,8 +196,10 @@ const App = () => {
           };
         });
         setCartridges(processedCartridges);
+        setIsLoading(false);
       } catch (error) {
         console.error("Error fetching data from Contentful:", error);
+        setIsLoading(false);
       }
     };
 
@@ -197,7 +212,7 @@ const App = () => {
     // Simulate animation end after 1200ms
     setTimeout(() => {
       setIsAnimating(false);
-    }, 100);
+    }, 1300); // Extend to cover the full animation cycle
 
     // Find the clicked cartridge
     const cartridge = cartridges.find(cartridge => cartridge.name === name);
@@ -213,10 +228,13 @@ const App = () => {
       sfxin.play();
       setCurrentCover(cartridge.cover); // Update the current cover to the clicked cartridge's cover
       setCurrentSongName(cartridge.name); // Update the current song name
+      console.log('Manual click: Set active cartridge to', name);
       const songIndex = cartridges.findIndex(cartridge => cartridge.name === name);
       setTimeout(() => {
+        setManualPlayerOperation(true); // Block player events during manual operation
         musicPlayerRef.current.updatePlayIndex(songIndex);
         musicPlayerRef.current.audio.play();
+        setTimeout(() => setManualPlayerOperation(false), 500); // Clear flag after operations
       }, 1200);
     }
   };
@@ -366,16 +384,37 @@ const App = () => {
       </Canvas>
       <Leva hidden />
      
+      {isLoading && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          color: 'white',
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          textTransform: 'uppercase',
+          zIndex: 1000,
+          animation: 'pulse 1.5s infinite'
+        }}>
+          Loading...
+        </div>
+      )}
+
       <div style={{
         position: 'absolute',
         bottom: bottomSpacing,
         left: '15px',
+        right: playerMode === 'full' ? (isDesktop ? '200px' : '85px') : '70px',
         display: 'flex',
         alignItems: 'center',
         zIndex: 100,
         fontFamily: 'monospace',
         color: 'white',
         opacity: '0.7',
+        maxWidth: playerMode === 'full'
+          ? (isDesktop ? 'calc(100vw - 240px)' : 'calc(100vw - 125px)')
+          : 'calc(100vw - 110px)',
       }}>
         {currentCover && (
           <div style={{
@@ -384,11 +423,15 @@ const App = () => {
             backgroundImage: `url(${currentCover})`,
             backgroundSize: 'cover',
             marginRight: '10px',
+            flexShrink: 0,
           }} />
         )}
         {currentSongName && (
           <div style={{
             fontSize: '14px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}>
             {currentSongName}
           </div>
@@ -414,7 +457,61 @@ const App = () => {
         responsive={true}
         toggleMode = {true}
         showLyric = {true}
-        // Removed onAudioPlay and onAudioPause callbacks
+        showMiniModeCover={false}
+        showProgressLoadBar={true}
+        onAudioPlay={(audioInfo) => {
+          // Skip if modal just closed or during manual player operations
+          if (modalJustClosed || manualPlayerOperation) return;
+
+          // When play is pressed (from player or programmatically)
+          const currentIndex = audioList.findIndex(song => song.musicSrc === audioInfo.musicSrc);
+          if (currentIndex !== -1 && cartridges[currentIndex]) {
+            const cartridge = cartridges[currentIndex];
+            // Only activate if not already active
+            if (activeCartridge !== cartridge.name) {
+              setActiveCartridge(cartridge.name);
+              setCurrentCover(cartridge.cover);
+              setCurrentSongName(cartridge.name);
+              sfxin.play();
+              console.log('onAudioPlay: Set active cartridge to', cartridge.name);
+            }
+          }
+        }}
+        onAudioPlayTrackChange={(currentPlayId, audioLists, audioInfo) => {
+          // Skip if modal just closed or during manual player operations
+          if (modalJustClosed || manualPlayerOperation) return;
+
+          // Sync cartridge state when track changes (manual or auto-advance)
+          if (cartridges.length > 0 && currentPlayId >= 0 && currentPlayId < cartridges.length) {
+            const newCartridge = cartridges[currentPlayId];
+
+            // Only update if it's actually a different cartridge
+            if (newCartridge && activeCartridge !== newCartridge.name) {
+              // Play sound effects for the transition
+              if (activeCartridge) {
+                sfxout.play();
+              }
+
+              // Small delay to let the out animation play
+              setTimeout(() => {
+                setActiveCartridge(newCartridge.name);
+                setCurrentCover(newCartridge.cover);
+                setCurrentSongName(newCartridge.name);
+                sfxin.play();
+                console.log('onAudioPlayTrackChange: Set active cartridge to', newCartridge.name);
+              }, activeCartridge ? 200 : 0);
+            }
+          }
+        }}
+        onAudioPause={() => {
+          // When paused, deactivate the cartridge
+          if (activeCartridge) {
+            sfxout.play();
+            setActiveCartridge(null);
+            setCurrentCover('');
+            setCurrentSongName('');
+          }
+        }}
       />
     </>
   );
