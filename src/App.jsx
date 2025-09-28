@@ -10,15 +10,16 @@ import MusicPlayer from 'react-jinke-music-player';
 import 'react-jinke-music-player/assets/index.css';
 import { Console } from "./components/Console";
 import { Room } from "./components/Room";
+import { AudioVisualizer } from "./components/AudioVisualizer";
 
 
 
 
 
-const Scene = ({ onCartridgeClick, activeCartridge, cartridges }) => {
+const Scene = ({ onCartridgeClick, activeCartridge, cartridges, isPlaying }) => {
   return (
-    <> 
-
+    <>
+      <AudioVisualizer isPlaying={isPlaying} />
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       {cartridges.map(cartridge => {
         const isActive = activeCartridge === cartridge.name;
@@ -84,6 +85,7 @@ const App = () => {
   const [pendingSongKey, setPendingSongKey] = useState(null);
   const [showShareNotification, setShowShareNotification] = useState(false);
   const [urlSongPlayed, setUrlSongPlayed] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Parse URL for song parameter on mount
   useEffect(() => {
@@ -333,10 +335,10 @@ const App = () => {
   }));
 
   // Adjust bottom spacing based on viewport height for better responsive behavior
-  // Player takes significant space, need large margin to avoid overlap
+  // Desktop: Large margin for full player. Mobile: Much smaller for mini player
   const bottomSpacing = isDesktop
     ? '10%'
-    : (viewportHeight < 600 ? '80px' : '100px');
+    : (viewportHeight < 600 ? '25px' : '35px');
 
 
   return (
@@ -422,10 +424,11 @@ const App = () => {
       <Canvas shadows camera={{ fov: 70, position: [-16.54, 7.034, 0.064] }}>
         <OrbitControls />
         <CameraLogger />
-        <Scene 
-          onCartridgeClick={handleCartridgeClick} 
-          activeCartridge={activeCartridge} 
+        <Scene
+          onCartridgeClick={handleCartridgeClick}
+          activeCartridge={activeCartridge}
           cartridges={cartridges}
+          isPlaying={isPlaying}
         />
         <ambientLight intensity={0.5} />
 
@@ -577,6 +580,9 @@ const App = () => {
         showMiniModeCover={false}
         showProgressLoadBar={true}
         onAudioPlay={(audioInfo) => {
+          // Track playing state for visualization
+          setIsPlaying(true);
+
           // Skip if modal just closed or during manual player operations
           if (modalJustClosed || manualPlayerOperation) return;
 
@@ -621,6 +627,9 @@ const App = () => {
           }
         }}
         onAudioPause={() => {
+          // Track playing state for visualization
+          setIsPlaying(false);
+
           // When paused, deactivate the cartridge (but not during manual operations like audio unlock)
           if (activeCartridge && !manualPlayerOperation) {
             sfxout.play();
