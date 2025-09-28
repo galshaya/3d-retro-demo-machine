@@ -73,6 +73,7 @@ const App = () => {
   const sfxout = new Audio('/sfxout.mp3')
   const [playerMode, setPlayerMode] = useState('full'); // Default mode
   const [isDesktop, setIsDesktop] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
   const [useEffectComposer, setUseEffectComposer] = useState(true); // New state for toggle
   const [currentCover, setCurrentCover] = useState('');
   const [currentSongName, setCurrentSongName] = useState('');
@@ -80,11 +81,18 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [modalJustClosed, setModalJustClosed] = useState(false);
   const [manualPlayerOperation, setManualPlayerOperation] = useState(false);
+  const [pendingSongKey, setPendingSongKey] = useState(null);
+  const [showShareNotification, setShowShareNotification] = useState(false);
+  const [urlSongPlayed, setUrlSongPlayed] = useState(false);
 
-  // Debug activeCartridge changes
+  // Parse URL for song parameter on mount
   useEffect(() => {
-    console.log('activeCartridge changed to:', activeCartridge);
-  }, [activeCartridge]);
+    const urlParams = new URLSearchParams(window.location.search);
+    const songKey = urlParams.get('song');
+    if (songKey) {
+      setPendingSongKey(songKey);
+    }
+  }, []);
 
   
 
@@ -95,6 +103,7 @@ const App = () => {
       const isMobile = /iphone|ipad|android|windows phone/.test(userAgent);
       const isDesktop = !isMobile && window.innerWidth > 768; // Adjust as needed
       setIsDesktop(isDesktop);
+      setViewportHeight(window.innerHeight);
     };
 
     checkIfDesktop();
@@ -129,16 +138,72 @@ const App = () => {
 
     // If it's the first interaction, just play and pause the audio to unlock it
     if (firstInteraction && musicPlayerRef.current) {
+      // Block pause events during audio unlock
+      setManualPlayerOperation(true);
+
       musicPlayerRef.current.audio.play().then(() => {
         setTimeout(() => {
           musicPlayerRef.current.audio.pause();
           setFirstInteraction(false); // Update the state to know that the first interaction has occurred
           // Clear the flag after the audio unlock trick
-          setTimeout(() => setModalJustClosed(false), 500);
+          setTimeout(() => {
+            setModalJustClosed(false);
+            setManualPlayerOperation(false); // Re-enable pause events
+            // Note: pendingSong will be handled by useEffect, not here
+          }, 500);
         }, 100); // Short delay before pausing, adjust the time as needed
       }).catch(error => console.error('Error playing audio:', error));
     } else {
-      setTimeout(() => setModalJustClosed(false), 500);
+      setTimeout(() => {
+        setModalJustClosed(false);
+        // Note: pendingSong will be handled by useEffect, not here
+      }, 500);
+    }
+  };
+
+  const playPendingSong = () => {
+    if (pendingSongKey && cartridges.length > 0) {
+      // Convert string to number for comparison
+      const songKeyNumber = parseInt(pendingSongKey, 10);
+      const targetCartridge = cartridges.find(cartridge => cartridge.key === songKeyNumber);
+      if (targetCartridge) {
+        // Set state directly without going through handleCartridgeClick
+        setActiveCartridge(targetCartridge.name);
+        sfxin.play();
+        setCurrentCover(targetCartridge.cover);
+        setCurrentSongName(targetCartridge.name);
+
+        // Start audio
+        const songIndex = cartridges.findIndex(cartridge => cartridge.key === songKeyNumber);
+        setTimeout(() => {
+          setManualPlayerOperation(true);
+          musicPlayerRef.current.updatePlayIndex(songIndex);
+          musicPlayerRef.current.audio.play();
+          setTimeout(() => setManualPlayerOperation(false), 500);
+        }, 1200);
+
+        setPendingSongKey(null); // Clear pending song
+      }
+    }
+  };
+
+  const handleShareSong = () => {
+    if (activeCartridge && cartridges.length > 0) {
+      const activeCartridgeData = cartridges.find(cartridge => cartridge.name === activeCartridge);
+      if (activeCartridgeData) {
+        const shareUrl = `${window.location.origin}${window.location.pathname}?song=${activeCartridgeData.key}`;
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          setShowShareNotification(true);
+          setTimeout(() => setShowShareNotification(false), 2000);
+        }).catch(() => {
+          // Fallback: update URL in address bar
+          window.history.replaceState({}, '', shareUrl);
+          setShowShareNotification(true);
+          setTimeout(() => setShowShareNotification(false), 2000);
+        });
+      }
     }
   };
 
@@ -206,6 +271,14 @@ const App = () => {
     fetchCartridges();
   }, []);
 
+  // Try to play pending song whenever cartridges are loaded
+  useEffect(() => {
+    if (cartridges.length > 0 && pendingSongKey && !showModal && !urlSongPlayed) {
+      setUrlSongPlayed(true); // Prevent multiple calls
+      playPendingSong();
+    }
+  }, [cartridges, pendingSongKey, showModal, urlSongPlayed]);
+
   const handleCartridgeClick = (name) => {
     if (isAnimating) return; // Exit if an animation is in progress
     setIsAnimating(true); // Prevent further clicks
@@ -228,7 +301,6 @@ const App = () => {
       sfxin.play();
       setCurrentCover(cartridge.cover); // Update the current cover to the clicked cartridge's cover
       setCurrentSongName(cartridge.name); // Update the current song name
-      console.log('Manual click: Set active cartridge to', name);
       const songIndex = cartridges.findIndex(cartridge => cartridge.name === name);
       setTimeout(() => {
         setManualPlayerOperation(true); // Block player events during manual operation
@@ -260,7 +332,11 @@ const App = () => {
     cover: cartridge.cover,
   }));
 
-  const bottomSpacing = isDesktop ? '8%' : '15px';
+  // Adjust bottom spacing based on viewport height for better responsive behavior
+  // Player takes significant space, need large margin to avoid overlap
+  const bottomSpacing = isDesktop
+    ? '10%'
+    : (viewportHeight < 600 ? '80px' : '100px');
 
 
   return (
@@ -401,6 +477,24 @@ const App = () => {
         </div>
       )}
 
+      {showShareNotification && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          padding: '10px 20px',
+          borderRadius: '5px',
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          zIndex: 1000,
+        }}>
+          Link copied to clipboard!
+        </div>
+      )}
+
       <div style={{
         position: 'absolute',
         bottom: bottomSpacing,
@@ -432,8 +526,31 @@ const App = () => {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
           }}>
-            {currentSongName}
+            <span style={{ flex: 1, minWidth: 0 }}>
+              {currentSongName}
+            </span>
+            <button
+              onClick={handleShareSong}
+              style={{
+                background: 'none',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: 'white',
+                padding: '4px 8px',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                cursor: 'pointer',
+                borderRadius: '3px',
+                flexShrink: 0,
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+            >
+              SHARE
+            </button>
           </div>
         )}
       </div>
@@ -504,8 +621,8 @@ const App = () => {
           }
         }}
         onAudioPause={() => {
-          // When paused, deactivate the cartridge
-          if (activeCartridge) {
+          // When paused, deactivate the cartridge (but not during manual operations like audio unlock)
+          if (activeCartridge && !manualPlayerOperation) {
             sfxout.play();
             setActiveCartridge(null);
             setCurrentCover('');
